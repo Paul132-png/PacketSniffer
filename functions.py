@@ -9,7 +9,7 @@ si restul datelor din secventa de biti, procesata de portul RJ45
     :param bytes:
     :return:
     """
-    dest_mac, src_mac, prot = struct.unpack('! 6s 6s H', bytes[14:])
+    dest_mac, src_mac, prot = struct.unpack('! 6s 6s H', bytes[:14])
     return addr_mac(dest_mac), addr_mac(src_mac), socket.htons(prot), bytes[14:]
 
 

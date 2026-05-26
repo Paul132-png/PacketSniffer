@@ -5,6 +5,7 @@ import socket
 import matplotlib.pyplot as plt
 from collections import deque
 import time
+import threading
 from functions import *
 
 TAB1 = '\t - '
@@ -12,6 +13,9 @@ TAB2 = '\t\t - '
 TAB3 = '\t\t\t - '
 
 history = deque(maxlen=60)
+packet_count = 0
+lock = threading.Lock()
+
 fig, ax = plt.subplots(figsize=(10, 4))
 plt.ion()
 
@@ -25,9 +29,8 @@ ax.set_xlim(0, 60)
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
 
-def update_graph(packet_count):
+def update_graph():
     global fill
-    history.append(packet_count)
     x = list(range(len(history)))
     y = list(history)
 
@@ -41,10 +44,9 @@ def update_graph(packet_count):
     fig.canvas.draw_idle()
     fig.canvas.flush_events()
 
-def main():
+def sniffer():
+    global packet_count
     conn = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-    packet_count = 0
-    last_time = time.time()
 
     while True:
         raw_data, addr = conn.recvfrom(65536)
@@ -63,7 +65,7 @@ def main():
                 print(TAB2 + 'Type: {}, Code: {}, Checksum: {}'.format(icmp_type, code, checksum))
 
             elif prot == 6:
-                src_port, dst_port, sequence, acknowledgement, offset, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin = tcp_segment(data)
+                src_port, dst_port, sequence, acknowledgement, offset, flag_urg, flag_ack, flag_psh, flag_rst, flag_syn, flag_fin, _ = tcp_segment(data)
                 print(TAB1 + 'TCP Segment: ')
                 print(TAB2 + 'SRC Port: {}, DST Port: {}'.format(src_port, dst_port))
                 print(TAB2 + 'Sequence: {}, Acknowledgement: {}'.format(sequence, acknowledgement))
@@ -76,12 +78,26 @@ def main():
                 print(TAB2 + 'SRC Port: {}, DST Port: {}'.format(src_port, dst_port))
                 print(TAB2 + 'Length: {}, Checksum: {}'.format(length, checksum))
 
+        with lock:
+            packet_count += 1
+
+def main():
+    global packet_count
+
+    t = threading.Thread(target=sniffer, daemon=True)
+    t.start()
+
+    last_time = time.time()
+
+    while True:
         now = time.time()
         if now - last_time >= 1.0:
-            update_graph(packet_count)
-            packet_count = 0
+            with lock:
+                count = packet_count
+                packet_count = 0
+            history.append(count)
+            update_graph()
             last_time = now
-        else:
-            packet_count += 1
+        plt.pause(0.05)  # permite matplotlib sa proceseze evenimente
 
 main()

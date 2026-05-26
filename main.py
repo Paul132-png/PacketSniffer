@@ -3,6 +3,7 @@ Packet Sniffer pentru Ethernet
 """
 import socket
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 from collections import deque
 import time
 import threading
@@ -17,7 +18,6 @@ packet_count = 0
 lock = threading.Lock()
 
 fig, ax = plt.subplots(figsize=(10, 4))
-plt.ion()
 
 line, = ax.plot([], [], color='cyan', linewidth=1.5)
 fill = ax.fill_between([], [], alpha=0.3, color='cyan')
@@ -26,11 +26,23 @@ ax.set_title("Pachete / secundă")
 ax.set_ylabel("Packets/s")
 ax.set_xlabel("Timp (secunde)")
 ax.set_xlim(0, 60)
+ax.set_ylim(0, 10)
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
 
-def update_graph():
-    global fill
+last_time = time.time()
+
+def update_graph(frame):
+    global fill, packet_count, last_time
+
+    now = time.time()
+    if now - last_time >= 1.0:
+        with lock:
+            count = packet_count
+            packet_count = 0
+        history.append(count)
+        last_time = now
+
     x = list(range(len(history)))
     y = list(history)
 
@@ -39,10 +51,7 @@ def update_graph():
     fill.remove()
     fill = ax.fill_between(x, y, alpha=0.3, color='cyan')
 
-    ax.set_ylim(0, max(history, default=1) * 1.2 + 1)
-
-    fig.canvas.draw_idle()
-    fig.canvas.flush_events()
+    ax.set_ylim(0, max(max(history, default=1), 1) * 1.2 + 1)
 
 def sniffer():
     global packet_count
@@ -82,22 +91,10 @@ def sniffer():
             packet_count += 1
 
 def main():
-    global packet_count
-
     t = threading.Thread(target=sniffer, daemon=True)
     t.start()
 
-    last_time = time.time()
-
-    while True:
-        now = time.time()
-        if now - last_time >= 1.0:
-            with lock:
-                count = packet_count
-                packet_count = 0
-            history.append(count)
-            update_graph()
-            last_time = now
-        plt.pause(0.05)  # permite matplotlib sa proceseze evenimente
+    ani = FuncAnimation(fig, update_graph, interval=100, cache_frame_data=False)
+    plt.show(block=True)
 
 main()

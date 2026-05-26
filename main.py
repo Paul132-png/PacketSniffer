@@ -2,6 +2,7 @@
 Packet Sniffer pentru Ethernet
 """
 import socket
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from collections import deque
@@ -12,6 +13,8 @@ from functions import *
 TAB1 = '\t - '
 TAB2 = '\t\t - '
 TAB3 = '\t\t\t - '
+
+matplotlib.use('TkAgg')
 
 history = deque(maxlen=60)
 packet_count = 0
@@ -69,7 +72,7 @@ def sniffer():
             print(TAB3 + 'Source IP: {}, Destination IP: {}'.format(src, dst))
 
             if prot == 1:
-                icmp_type, code, checksum = icmp_packet(data)
+                icmp_type, code, checksum, _ = icmp_packet(data)
                 print(TAB1 + 'ICMP Packet: ')
                 print(TAB2 + 'Type: {}, Code: {}, Checksum: {}'.format(icmp_type, code, checksum))
 
@@ -96,5 +99,4 @@ def main():
 
     ani = FuncAnimation(fig, update_graph, interval=100, cache_frame_data=False)
     plt.show(block=True)
-
 main()
